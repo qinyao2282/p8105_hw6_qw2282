@@ -43,9 +43,8 @@ result_df =
   fit_logistic %>% 
   broom::tidy() %>% 
   mutate(OR = exp(estimate), 
-         ci_lower = cbind( exp(confint.default(fit_logistic, level = 0.95)))[,1],
-         ci_upper = cbind( exp(confint.default(fit_logistic, level = 0.95)))[,2]) %>%
-  select(term, log_OR = estimate, OR, p.value, ci_lower, ci_upper) %>% 
+         ci_lower = exp(estimate - qnorm(0.975) * std.error),
+         ci_upper =  exp(estimate + qnorm(0.975) * std.error)) %>% 
   filter(term == "victim_raceBlack")
 
 
@@ -59,4 +58,41 @@ a = data_homicide %>%
 levels(a$victim_race)
 #################################
 ```
+
+
+```{r}
+OR_city_state = data_homicide %>% 
+  select(city_state, resolved, victim_age, victim_race, victim_sex) %>% 
+  group_by(city_state) %>% 
+  nest() %>% 
+  mutate(result = map(data, ~glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()))) %>%
+select(-data) %>%
+   
+  mutate(result_tidy = map(result, broom::tidy)) %>%
+  unnest(result_tidy) %>% 
+  #filter(term == "victim_raceBlack") %>% 
+  mutate(OR = exp(estimate), 
+         ci_lower = exp(estimate - qnorm(0.975) * std.error),
+         ci_upper =  exp(estimate + qnorm(0.975) * std.error)) %>%
+  select(city_state, term, log_OR = estimate, OR, p.value, ci_lower, ci_upper) %>% 
+  filter(term == "victim_raceBlack") %>% 
+  mutate(city_state = forcats::fct_reorder(factor(city_state), OR)) 
+
+
+ggplot(OR_city_state, aes( x = city_state, y = OR)) +
+  geom_point(aes(size = 5, col = "blue")) +
+  
+  #Add the error bar. 
+  geom_errorbar(aes(x = city_state, ymin = ci_lower, ymax = ci_upper)) +
+  theme(text = element_text(size = 8), axis.text.x = element_text(angle = 60, hjust = 1)) + 
+  
+  #Add the title and the name for x and y axis. 
+  labs(
+    title = "OR estimation of Different City State of Black People",
+    x = "City State",
+    y = "Estimation of OR of unsolved Black homicides"
+  )
+```
+
+
 
