@@ -1,0 +1,62 @@
+---
+title: "p8105_hw6_qw2282"
+author: "Qinyao Wu"
+date: "11/17/2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+```
+
+```{r}
+
+
+delete_city = c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")
+
+data_homicide = read.csv(file = "./data/homicide-data.csv") %>% 
+  mutate(city_state = str_c(city,", ", state), 
+         victim_age = as.numeric(victim_age),
+         victim_race = fct_relevel(victim_race, "White")) %>% 
+  select(-city, -state) %>% 
+  
+  #Use the function to define each case as arrested or unarrested. 
+  mutate(resolved = as.numeric(disposition == "Closed by arrest")) %>% 
+  filter( !(city_state %in% delete_city)) %>% 
+  mutate(victim_race = forcats::fct_relevel(victim_race, ref = "White")) %>% 
+  mutate(cat_race = factor(ifelse(victim_race == "White", "white", "Non-white"))) %>% 
+  mutate(cat_race = relevel(cat_race, ref = "white")) 
+ 
+baltimore_df = 
+  data_homicide %>% 
+   filter(city_state == "Baltimore, MD") %>% 
+  select(resolved, victim_age, victim_race, victim_sex) 
+
+fit_logistic = 
+  baltimore_df %>% 
+  glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()) 
+
+result_df = 
+  fit_logistic %>% 
+  broom::tidy() %>% 
+  mutate(OR = exp(estimate), 
+         ci_lower = cbind( exp(confint.default(fit_logistic, level = 0.95)))[,1],
+         ci_upper = cbind( exp(confint.default(fit_logistic, level = 0.95)))[,2]) %>%
+  select(term, log_OR = estimate, OR, p.value, ci_lower, ci_upper) %>% 
+  filter(term == "victim_raceBlack")
+
+
+
+
+ ################################
+a = data_homicide %>%   
+  mutate(resolved = as.numeric(disposition == "Closed by arrest"),
+         victim_age = as.numeric(victim_age),
+         victim_race = fct_relevel(victim_race, "White"))
+levels(a$victim_race)
+#################################
+```
+
