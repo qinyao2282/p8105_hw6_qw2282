@@ -97,6 +97,26 @@ ggplot(OR_city_state, aes( x = city_state, y = OR)) +
 ###Problem 2
 
 ```{r}
+data_birthweight = read.csv(file = "./data/birthweight.csv") %>% 
+  janitor::clean_names() %>% 
+  mutate(babysex = as.factor(babysex),
+         malform = as.factor(malform),
+         frace = as.factor(frace),
+         mrace = as.factor(mrace))
+
+
+###Model with birth length and gaweeks
+fit_lenth_gage = lm(bwt ~ blength + gaweeks, data = data_birthweight) %>% 
+  broom::tidy()
+
+data_birthweight %>% 
+  modelr::add_residuals(fit_lenth_gage) %>% 
+  ggplot(aes(x = gaweeks, y = resid)) + geom_violin()
+
+
+###Model with three way interaction
+fit_three = lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data = data_birthweight) %>% 
+  broom::tidy()
 
 ```
 
