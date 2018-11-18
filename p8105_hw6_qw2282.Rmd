@@ -94,5 +94,10 @@ ggplot(OR_city_state, aes( x = city_state, y = OR)) +
   )
 ```
 
+###Problem 2
+
+```{r}
+
+```
 
 
