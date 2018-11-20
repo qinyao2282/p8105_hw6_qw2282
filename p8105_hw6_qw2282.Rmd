@@ -104,9 +104,30 @@ data_birthweight = read.csv(file = "./data/birthweight.csv") %>%
          frace = as.factor(frace),
          mrace = as.factor(mrace))
 
+####Build model
 
+###Use stepwise function
+mult.fit = lm(bwt ~ ., data = data_birthweight)
+step(mult.fit, direction = 'backward')
+
+
+
+design_model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + 
+    gaweeks + mheight + mrace + parity + ppwt + smoken + babysex * bhead, data = data_birthweight) %>% 
+  summary()
+
+
+
+```
+
+
+
+
+
+```{r}
 ###Model with birth length and gaweeks
 fit_lenth_gage = lm(bwt ~ blength + gaweeks, data = data_birthweight) %>% 
+  summary()
   broom::tidy()
 
 data_birthweight %>% 
@@ -116,8 +137,8 @@ data_birthweight %>%
 
 ###Model with three way interaction
 fit_three = lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data = data_birthweight) %>% 
+  summary()
   broom::tidy()
 
 ```
-
 
