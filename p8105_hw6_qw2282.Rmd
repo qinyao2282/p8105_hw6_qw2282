@@ -33,11 +33,11 @@ data_homicide = read.csv(file = "./data/homicide-data.csv") %>%
 baltimore_df = 
   data_homicide %>% 
    filter(city_state == "Baltimore, MD") %>% 
-  select(resolved, victim_age, victim_race, victim_sex) 
+  select(resolved, victim_age, cat_race, victim_sex) 
 
 fit_logistic = 
   baltimore_df %>% 
-  glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()) 
+  glm(resolved ~ victim_age + cat_race + victim_sex, data = ., family = binomial()) 
 
 result_df = 
   fit_logistic %>% 
@@ -45,18 +45,12 @@ result_df =
   mutate(OR = exp(estimate), 
          ci_lower = exp(estimate - qnorm(0.975) * std.error),
          ci_upper =  exp(estimate + qnorm(0.975) * std.error)) %>% 
-  filter(term == "victim_raceBlack")
+  filter(term == "cat_raceNon-white")
 
 
 
 
- ################################
-a = data_homicide %>%   
-  mutate(resolved = as.numeric(disposition == "Closed by arrest"),
-         victim_age = as.numeric(victim_age),
-         victim_race = fct_relevel(victim_race, "White"))
-levels(a$victim_race)
-#################################
+
 ```
 
 
@@ -126,9 +120,7 @@ design_model = lm(bwt ~ babysex + bhead + blength + delwt + fincome +
 
 ```{r}
 ###Model with birth length and gaweeks
-fit_lenth_gage = lm(bwt ~ blength + gaweeks, data = data_birthweight) %>% 
-  summary()
-  broom::tidy()
+fit_lenth_gage = lm(bwt ~ blength + gaweeks, data = data_birthweight) 
 
 data_birthweight %>% 
   modelr::add_residuals(fit_lenth_gage) %>% 
@@ -137,7 +129,6 @@ data_birthweight %>%
 
 ###Model with three way interaction
 fit_three = lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data = data_birthweight) %>% 
-  summary()
   broom::tidy()
 
 ```
