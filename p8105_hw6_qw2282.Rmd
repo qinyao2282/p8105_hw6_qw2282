@@ -9,6 +9,8 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(modelr)
+library(mgcv)
 
 ```
 
@@ -143,4 +145,40 @@ fit_three = lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data
 ```
 
 
-###
+###Comparison between models
+
+```{r}
+cv_df = 
+  crossv_mc(data_birthweight, 10) 
+
+
+cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
+
+
+cv_df =
+  cv_df %>% 
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
+
+cv_df = 
+  cv_df %>% 
+  mutate(model_1    = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt + fincome + 
+    gaweeks + mheight + mrace + parity + ppwt + smoken + babysex * bhead, data = data_birthweight)),
+         model_2 = map(train, ~lm(bwt ~ blength + gaweeks, data = data_birthweight)),
+         model_3 = map(train, ~lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data = data_birthweight))) %>% 
+  mutate(rmse_1   = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
+         rmse_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)),
+         rmse_3 = map2_dbl(model_3, test, ~rmse(model = .x, data = .y)))
+
+
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+
+
+```
+
