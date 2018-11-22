@@ -107,8 +107,17 @@ step(mult.fit, direction = 'backward')
 
 
 design_model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + 
-    gaweeks + mheight + mrace + parity + ppwt + smoken + babysex * bhead, data = data_birthweight) %>% 
+    gaweeks + mheight + mrace + parity + ppwt + smoken + babysex * bhead, data = data_birthweight) 
+
+design_model %>% 
   summary()
+
+design_model %>% 
+  broom::tidy()
+
+data_birthweight %>% 
+  modelr::add_residuals(design_model) %>% 
+  ggplot(aes(x = gaweeks, y = resid)) + geom_violin()
 
 
 
@@ -133,3 +142,5 @@ fit_three = lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data
 
 ```
 
+
+###
