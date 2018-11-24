@@ -8,6 +8,8 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+#Add packages
+
 library(tidyverse)
 library(modelr)
 library(mgcv)
@@ -16,8 +18,11 @@ library(mgcv)
 
 ```{r}
 
+#Make the array for the cities that need to be deleted.
 
 delete_city = c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")
+
+#tidy the data, change into numeric, combine city and state.
 
 data_homicide = read.csv(file = "./data/homicide-data.csv") %>% 
   mutate(city_state = str_c(city,", ", state), 
@@ -25,48 +30,53 @@ data_homicide = read.csv(file = "./data/homicide-data.csv") %>%
          victim_race = fct_relevel(victim_race, "White")) %>% 
   select(-city, -state) %>% 
   
-  #Use the function to define each case as arrested or unarrested. 
+  #Make the resolved and unresolved binary
+  
   mutate(resolved = as.numeric(disposition == "Closed by arrest")) %>% 
   filter( !(city_state %in% delete_city)) %>% 
   mutate(victim_race = forcats::fct_relevel(victim_race, ref = "White")) %>% 
   mutate(cat_race = factor(ifelse(victim_race == "White", "white", "Non-white"))) %>% 
   mutate(cat_race = relevel(cat_race, ref = "white")) 
  
+#Filter the data for baltimore.
+
 baltimore_df = 
   data_homicide %>% 
    filter(city_state == "Baltimore, MD") %>% 
   select(resolved, victim_age, cat_race, victim_sex) 
 
+#Fit baltimore data
 fit_logistic = 
   baltimore_df %>% 
   glm(resolved ~ victim_age + cat_race + victim_sex, data = ., family = binomial()) 
+
+#tidy the result to add the odds ratios.
 
 result_df = 
   fit_logistic %>% 
   broom::tidy() %>% 
   mutate(OR = exp(estimate), 
+         
+         # Add the confidence interval
+         
          ci_lower = exp(estimate - qnorm(0.975) * std.error),
          ci_upper =  exp(estimate + qnorm(0.975) * std.error)) %>% 
   filter(term == "cat_raceNon-white")
-
-
-
-
 
 ```
 
 
 ```{r}
+#Apply the method to all the city states. 
 OR_city_state = data_homicide %>% 
   select(city_state, resolved, victim_age, victim_race, victim_sex) %>% 
   group_by(city_state) %>% 
   nest() %>% 
   mutate(result = map(data, ~glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()))) %>%
 select(-data) %>%
-   
+   #Tidy the result with broom and add the odds ratio and the confidence interval. 
   mutate(result_tidy = map(result, broom::tidy)) %>%
   unnest(result_tidy) %>% 
-  #filter(term == "victim_raceBlack") %>% 
   mutate(OR = exp(estimate), 
          ci_lower = exp(estimate - qnorm(0.975) * std.error),
          ci_upper =  exp(estimate + qnorm(0.975) * std.error)) %>%
@@ -93,12 +103,16 @@ ggplot(OR_city_state, aes( x = city_state, y = OR)) +
 ###Problem 2
 
 ```{r}
+#Read the data for birthweight
+
 data_birthweight = read.csv(file = "./data/birthweight.csv") %>% 
   janitor::clean_names() %>% 
   mutate(babysex = as.factor(babysex),
          malform = as.factor(malform),
          frace = as.factor(frace),
          mrace = as.factor(mrace))
+
+
 
 ####Build model
 
