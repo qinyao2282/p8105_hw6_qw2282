@@ -201,11 +201,11 @@ cv_df %>%
   geom_violin() + 
   #Add the title and the name for x and y axis. 
   labs(
-    title = "Comarison of rmse between three models",
+    title = "Comparison of rmse between three models",
     x = "Models",
     y = "rmse"
   )
 
 ```
 
-From the vilin plot of the comparison between three models, we can conclude that the first model is the most superior one, which is the model we designed. 
+From the violin plot of the comparison between three models, we can conclude that the first model is the most superior one, which is the model we designed. 
