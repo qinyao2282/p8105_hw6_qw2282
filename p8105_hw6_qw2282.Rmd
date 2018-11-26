@@ -113,7 +113,9 @@ data_birthweight = read.csv(file = "./data/birthweight.csv") %>%
          mrace = as.factor(mrace))
 
 
+```
 
+```{r}
 ####Build model
 
 ###Use stepwise function
@@ -122,8 +124,7 @@ step(mult.fit, direction = 'backward')
 
 
 
-design_model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + 
-    gaweeks + mheight + mrace + parity + ppwt + smoken + babysex * bhead, data = data_birthweight) 
+design_model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, data = data_birthweight) 
 
 design_model %>% 
   summary()
@@ -132,15 +133,27 @@ design_model %>%
   broom::tidy()
 
 data_birthweight %>% 
-  modelr::add_residuals(design_model) %>% 
-  ggplot(aes(x = gaweeks, y = resid)) + geom_violin()
-
-
+  add_residuals(model = design_model, var = "resid") %>% 
+  add_predictions(model = design_model, var = "pred") %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() +
+  geom_smooth() + 
+  #Add the title and the name for x and y axis. 
+  labs(
+    title = "Model Residuals v.s. Fitted Values",
+    x = "Prediction values",
+    y = "Residuals"
+  )
 
 ```
 
 
 
+####Model proposal
+
+I propose this model by using Stepswise Regression Selection. And by looking at these variables, these variables are meaningful in real life circumstances, especially the baby sex, babylength and gestational age in weeks. They do have a great influence on the infants' weight. In addtion to the meanings, this model also have a high adjusted r squred value, which is 0.71. This indicates that my model explains 71% of the dataset. 
+
+From the plot, we can observe that, when the prediction value is relatively small, usually smaller than 2000, the residual tend to be higher and the model don't have an accurate prediction. When the prediction value is larger than 2000, the residual becomes small and the prediction is accurate. 
 
 
 ```{r}
