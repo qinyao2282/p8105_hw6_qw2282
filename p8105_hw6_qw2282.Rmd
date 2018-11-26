@@ -16,44 +16,48 @@ library(mgcv)
 
 ```
 
+
 ```{r}
-
-#Make the array for the cities that need to be deleted.
-
-delete_city = c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL")
-
-#tidy the data, change into numeric, combine city and state.
-
-data_homicide = read.csv(file = "./data/homicide-data.csv") %>% 
-  mutate(city_state = str_c(city,", ", state), 
-         victim_age = as.numeric(victim_age),
-         victim_race = fct_relevel(victim_race, "White")) %>% 
-  select(-city, -state) %>% 
+#Import the data and tidy by combing the city and state. 
+homicide_data = read_csv("data/homicide-data.csv") %>% 
+    mutate(
+        city_state = str_c(city, ", ", state),
+        resolved = ifelse(disposition %in% c("Closed without arrest", "Open/No arrest"), 0, 1),
+       resolved = as.factor(resolved)
+           ) %>% 
+  mutate(victim_age = as.numeric(victim_age)) %>% 
   
-  #Make the resolved and unresolved binary
+  #Remove the city states that we do not need. 
   
-  mutate(resolved = as.numeric(disposition == "Closed by arrest")) %>% 
-  filter( !(city_state %in% delete_city)) %>% 
-  mutate(victim_race = forcats::fct_relevel(victim_race, ref = "White")) %>% 
-  mutate(cat_race = factor(ifelse(victim_race == "White", "white", "Non-white"))) %>% 
-  mutate(cat_race = relevel(cat_race, ref = "white")) 
- 
-#Filter the data for baltimore.
+    filter(!(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL"))) %>% 
+  
+  #Relevel the races. 
+    mutate(
+        victim_race = ifelse(victim_race == "White", "white", "non-white"),
+        victim_race = factor(victim_race, levels = c("white", "non-white")))
+
+```
+
+
+
+
+```{r}
+#Filter the data for baltimore. 
 
 baltimore_df = 
-  data_homicide %>% 
-   filter(city_state == "Baltimore, MD") %>% 
-  select(resolved, victim_age, cat_race, victim_sex) 
+  homicide_data%>% 
+   filter(city_state == "Baltimore, MD") 
+#%>% 
+ # select(resolved, victim_age, cat_race, victim_sex) 
 
 #Fit baltimore data
 fit_logistic = 
   baltimore_df %>% 
-  glm(resolved ~ victim_age + cat_race + victim_sex, data = ., family = binomial()) 
+  glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()) 
 
 #tidy the result to add the odds ratios.
 
-result_df = 
-  fit_logistic %>% 
+fit_logistic %>% 
   broom::tidy() %>% 
   mutate(OR = exp(estimate), 
          
@@ -61,18 +65,18 @@ result_df =
          
          ci_lower = exp(estimate - qnorm(0.975) * std.error),
          ci_upper =  exp(estimate + qnorm(0.975) * std.error)) %>% 
-  filter(term == "cat_raceNon-white")
+  #Print the tatble
+  knitr::kable(digits = 3)
 
 ```
 
 
 ```{r}
 #Apply the method to all the city states. 
-OR_city_state = data_homicide %>% 
-  select(city_state, resolved, victim_age, victim_race, victim_sex) %>% 
+OR_city_state = homicide_data %>% 
   group_by(city_state) %>% 
   nest() %>% 
-  mutate(result = map(data, ~glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()))) %>%
+  mutate(result = map(data, ~glm(resolved ~ victim_age + victim_race + victim_sex, data = .x, family = binomial()))) %>%
 select(-data) %>%
    #Tidy the result with broom and add the odds ratio and the confidence interval. 
   mutate(result_tidy = map(result, broom::tidy)) %>%
@@ -81,12 +85,13 @@ select(-data) %>%
          ci_lower = exp(estimate - qnorm(0.975) * std.error),
          ci_upper =  exp(estimate + qnorm(0.975) * std.error)) %>%
   select(city_state, term, log_OR = estimate, OR, p.value, ci_lower, ci_upper) %>% 
-  filter(term == "victim_raceBlack") %>% 
+  filter(term == "victim_racenon-white") %>% 
   mutate(city_state = forcats::fct_reorder(factor(city_state), OR)) 
 
+#Plot the OR for all city_states. 
 
 ggplot(OR_city_state, aes( x = city_state, y = OR)) +
-  geom_point(aes(size = 5, col = "blue")) +
+  geom_point(aes(size = 5)) +
   
   #Add the error bar. 
   geom_errorbar(aes(x = city_state, ymin = ci_lower, ymax = ci_upper)) +
@@ -123,14 +128,12 @@ mult.fit = lm(bwt ~ ., data = data_birthweight)
 step(mult.fit, direction = 'backward')
 
 
-
+#Here is my model. 
 design_model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, data = data_birthweight) 
 
-design_model %>% 
-  summary()
 
 design_model %>% 
-  broom::tidy()
+  summary() #R squre = 0.71
 
 data_birthweight %>% 
   add_residuals(model = design_model, var = "resid") %>% 
@@ -158,15 +161,11 @@ From the plot, we can observe that, when the prediction value is relatively smal
 
 ```{r}
 ###Model with birth length and gaweeks
-fit_lenth_gage = lm(bwt ~ blength + gaweeks, data = data_birthweight) 
-
-data_birthweight %>% 
-  modelr::add_residuals(fit_lenth_gage) %>% 
-  ggplot(aes(x = gaweeks, y = resid)) + geom_violin()
-
+model_2 = lm(bwt ~ blength + gaweeks, data = data_birthweight) %>% 
+  broom::tidy()
 
 ###Model with three way interaction
-fit_three = lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data = data_birthweight) %>% 
+model_3 = lm(bwt ~ babysex + bhead + blength + blength * babysex * bhead, data = data_birthweight) %>% 
   broom::tidy()
 
 ```
@@ -176,36 +175,37 @@ fit_three = lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data
 
 ```{r}
 cv_df = 
-  crossv_mc(data_birthweight, 10) 
-
-
-cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
-
-
-cv_df =
-  cv_df %>% 
+  crossv_mc(data_birthweight, 100) %>% 
   mutate(train = map(train, as_tibble),
          test = map(test, as_tibble))
 
+#Perform the cross validation and add the rmse by using the test data. 
 cv_df = 
   cv_df %>% 
-  mutate(model_1    = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt + fincome + 
-    gaweeks + mheight + mrace + parity + ppwt + smoken + babysex * bhead, data = data_birthweight)),
+  mutate(model_1    = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, data = data_birthweight)),
          model_2 = map(train, ~lm(bwt ~ blength + gaweeks, data = data_birthweight)),
          model_3 = map(train, ~lm(bwt ~ blength + babysex + bhead + blength * babysex * bhead, data = data_birthweight))) %>% 
+  
   mutate(rmse_1   = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
          rmse_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)),
          rmse_3 = map2_dbl(model_3, test, ~rmse(model = .x, data = .y)))
 
 
-
+#Make the violin plot for three models with thr rmse. 
 cv_df %>% 
   select(starts_with("rmse")) %>% 
   gather(key = model, value = rmse) %>% 
   mutate(model = str_replace(model, "rmse_", ""),
          model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
-
+  ggplot(aes(x = model, y = rmse, fill = model)) + 
+  geom_violin() + 
+  #Add the title and the name for x and y axis. 
+  labs(
+    title = "Comarison of rmse between three models",
+    x = "Models",
+    y = "rmse"
+  )
 
 ```
 
+From the vilin plot of the comparison between three models, we can conclude that the first model is the most superior one, which is the model we designed. 
